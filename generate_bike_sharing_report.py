@@ -301,6 +301,64 @@ To quantify predictive performance, we trained three models - \textbf{Linear Reg
   \label{tab:seasonal_weights}
 \end{table}
 
+\begin{table}[H]
+  \centering
+  \begin{tabular}{lr}
+    \toprule
+    Feature     & Weight      \\
+    \midrule
+    temp        & 331.2227    \\
+    precip      & -17.2324    \\
+    humidity    & -185.1993   \\
+    wind        & -0.4096     \\
+    hour        & 192.3670    \\
+    dayofweek   & 28.2271     \\
+    month       & -34.5754    \\
+    \bottomrule
+  \end{tabular}
+  \caption{Standardized coefficients for Linear Regression.}
+  \label{tab:lr_feature_weights}
+\end{table}
+
+\begin{table}[H]
+  \centering
+  \begin{tabular}{lr}
+    \toprule
+    Feature     & Importance  \\
+    \midrule
+    temp        & 0.344609    \\
+    precip      & 0.035067    \\
+    humidity    & 0.025685    \\
+    wind        & 0.017877    \\
+    hour        & 0.510206    \\
+    dayofweek   & 0.054714    \\
+    month       & 0.011842    \\
+    \bottomrule
+  \end{tabular}
+  \caption{Feature importances for Random Forest.}
+  \label{tab:rf_feature_weights}
+\end{table}
+
+\begin{table}[H]
+  \centering
+  \begin{tabular}{lr}
+    \toprule
+    Feature     & Importance  \\
+    \midrule
+    temp        & 0.358860    \\
+    precip      & 0.012179    \\
+    humidity    & 0.045605    \\
+    wind        & 0.001825    \\
+    hour        & 0.536802    \\
+    dayofweek   & 0.041956    \\
+    month       & 0.002774    \\
+    \bottomrule
+  \end{tabular}
+  \caption{Feature importances for Gradient Boosting.}
+  \label{tab:gb_feature_weights}
+\end{table}
+
+
 
 \section{Discussion}
 Temperature stands out as the single most influential predictor, explaining around 90\% of the variance in ridership. As Figure~\ref{fig:monthly_trends} and Table 1 illustrate, average monthly ride counts rise almost linearly with temperature up to the mid‑20\,°C range before plateauing, consistent with human comfort models \cite{Steadman1979}.
@@ -367,18 +425,32 @@ The \textbf{Random Forest} achieved
   \qquad
   \overline{R^2}_{\rm CV} = 0.8736 \;(\mathrm{std}=0.0483),
 \]
-reflecting its strength at automatically modeling nonlinear effects of temperature, humidity, wind speed, and temporal covariates.  In contrast, Linear Regression underfits complex seasonal and weather‐driven patterns, yielding a negative winter \(R^2\) (i.e.\ worse than using the mean) and substantially larger residuals.
+reflecting its strength at automatically modeling nonlinear effects of temperature, humidity, wind speed, and temporal covariates.  In contrast, Linear Regression underfits complex seasonal and weather‐driven patterns, yielding a negative winter \(R^2\) (i.e.\ worse than using the mean) and substantially larger residuals.  Table~\ref{tab:model_perf_updated} summarizes these global performance metrics.
 
 \medskip
-To diagnose performance by season, we compute a season‑specific \(R^2\) on the test subset belonging to each meteorological regime:
+To understand which inputs drive each model’s predictions, we examine the learned feature weights:
+\begin{itemize}
+  \item \textbf{Linear Regression} standardized coefficients are given in Table~\ref{tab:lr_feature_weights}.
+  \item \textbf{Random Forest} feature importances are shown in Table~\ref{tab:rf_feature_weights}.
+  \item \textbf{Gradient Boosting} feature importances are shown in Table~\ref{tab:gb_feature_weights}.
+\end{itemize}
+
+\medskip
+An analysis of the coefficient patterns in Table~\ref{tab:lr_feature_weights} shows that \emph{temperature} has the largest positive standardized coefficient (331.2), indicating that a one-standard-deviation increase in temperature predicts roughly 331 additional rides, underscoring the strong sensitivity of ridership to ambient warmth.  The \emph{hour of day} coefficient (192.4) is similarly large, reflecting pronounced commuter peaks.  Negative coefficients for \emph{humidity} (–185.2) and \emph{precipitation} (–17.2) confirm that muggy conditions and rain deter riders, while the near-zero coefficient for \emph{wind} (–0.4) suggests minimal linear impact after accounting for other factors.  
+
+By contrast, the tree-based models in Tables~\ref{tab:rf_feature_weights} and~\ref{tab:gb_feature_weights} assign highest importance to \emph{hour of day} (51.0\% in RF, 53.7\% in GB) and \emph{temperature} (34.5\% in RF, 35.9\% in GB), indicating these variables are most frequently used in decision splits to reduce error.  Lower importances for \emph{month}, \emph{wind}, and \emph{humidity} reflect their more subtle nonlinear contributions.  These weight patterns mirror intuitive dynamics: diurnal commute patterns dominate, temperature strongly modulates demand, and secondary weather or seasonal covariates play smaller roles.
+
+\medskip
+To diagnose performance by season, we compute a season-specific \(R^2\) on the test subset belonging to each meteorological regime:
 \begin{equation}
   R^2_{s} \;=\; 1 \;-\; \frac{\displaystyle \sum_{i\in\mathcal{I}_s} (y_i - \hat y_i)^2}
                                   {\displaystyle \sum_{i\in\mathcal{I}_s} (y_i - \bar y_s)^2}
   \quad\text{for}\;s\in\{\mathrm{winter},\mathrm{spring},\mathrm{summer},\mathrm{fall}\},
   \label{eq:seasonal-r2}
 \end{equation}
-where \(\mathcal{I}_s\) indexes test‐set hours in season \(s\), \(\bar y_s\) is the mean rides in that season, and \(n_s = |\mathcal{I}_s|\) is the number of hourly buckets in the held‐out test split (total \(\sum_s n_s = 6422\), i.e.\ the count of non‐missing, weather‐matched hours after an 80/20 train/test split).
+where \(\mathcal{I}_s\) indexes test‐set hours in season \(s\), \(\bar y_s\) is the mean rides in that season, and \(n_s = |\mathcal{I}_s|\) is the number of hourly buckets in the held‐out test split (total \(\sum_s n_s = 6422\)).
 
+\medskip
 We then weight each seasonal \(R^2_s\) by its share of the test data:
 \begin{align}
   w_s &= \frac{n_s}{\sum_{t} n_t}, 
@@ -387,19 +459,19 @@ We then weight each seasonal \(R^2_s\) by its share of the test data:
 \end{align}
 
 \medskip
-\noindent Table~\ref{tab:seasonal_r2} summarizes the per‐season \(R^2_s\), counts \(n_s\), weights \(w_s\), and their contribution to the weighted average.  The weighted seasonal \(R^2\) (~0.86 for Random Forest) differs from the global \(R^2\) (0.90) because each uses a different sum‐of‐squares denominator (\(\sum_s\mathrm{SST}_s\) vs.\ \(\mathrm{SST}_{\rm global}\)) and redistributes influence according to season length.
+Table~\ref{tab:seasonal_r2} summarizes the per‐season \(R^2_s\) for each model, and Table~\ref{tab:seasonal_weights} reports the counts \(n_s\), weights \(w_s\), and their contributions \(w_s\,R^2_s\) to the weighted average.
 
 \medskip
 Seasonal breakdown for Random Forest:
 \begin{itemize}
-  \item \textbf{Winter (Dec--Feb)} (\(n=744\), \(R^2=0.6211\), \(w=0.116\))
-  \item \textbf{Spring (Mar--May)} (\(n=1358\), \(R^2=0.8792\), \(w=0.211\))
-  \item \textbf{Summer (Jun--Aug)} (\(n=2136\), \(R^2=0.9037\), \(w=0.333\))
-  \item \textbf{Fall (Sep--Nov)}   (\(n=2184\), \(R^2=0.8929\), \(w=0.340\))
+  \item \textbf{Winter (Dec--Feb)} (\(n=744\), \(R^2=0.6211\), \(w=0.1159\))
+  \item \textbf{Spring (Mar--May)} (\(n=1358\), \(R^2=0.8792\), \(w=0.2115\))
+  \item \textbf{Summer (Jun--Aug)} (\(n=2136\), \(R^2=0.9037\), \(w=0.3326\))
+  \item \textbf{Fall (Sep--Nov)}   (\(n=2184\), \(R^2=0.8929\), \(w=0.3400\))
 \end{itemize}
 
 \medskip
-These results motivate \emph{seasonally adaptive rebalancing} of the fleet:  
+These results motivate \emph{seasonally adaptive rebalancing} of the fleet:
 \begin{itemize}
   \item Exploit high summer accuracy for aggressive station restocking when demand peaks.
   \item Incorporate holiday calendars, local event schedules, and station‐level microclimate measures to boost winter and holiday‐period forecasts where the model currently struggles.
@@ -426,11 +498,9 @@ Our integrated analysis confirms that weather and temporal factors critically sh
 \end{document}
 """
 
-# Write the LaTeX file
 with open(TEX_PATH, "w", encoding="utf-8") as f:
     f.write(tex)
 
-# Locate pdflatex executable
 pdflatex_cmd = shutil.which("pdflatex") or shutil.which("pdflatex.exe")
 if not pdflatex_cmd and os.name == 'nt':
     common_paths = [
@@ -448,7 +518,6 @@ if not pdflatex_cmd:
     print("Error: 'pdflatex' not found. Please ensure MiKTeX is installed and 'pdflatex.exe' is on your PATH or in a standard MiKTeX folder.")
     sys.exit(1)
 
-# Compile to PDF
 try:
     subprocess.run([pdflatex_cmd, "-interaction=nonstopmode", "-output-directory", OUTPUT_DIR, TEX_PATH], check=True)
     print(f"Report generated at {os.path.join(OUTPUT_DIR, PDF_NAME)}")
