@@ -52,8 +52,30 @@ X \in \bigl[\,Q_1-1.5\,\mathrm{IQR},\; Q_3+1.5\,\mathrm{IQR}\bigr]
 This filtering produced a high quality corpus spanning \textbf{48} CSV files and 1,461 days (between 2021‑01‑01 to 2024‑12‑31), retaining \textbf{21 647 186} rides, an average of \textbf{14 817} trips per day (≈\textbf{617} rides\,hr$^{-1}$), thereby preserving meaningful variability for downstream analysis. If certain data required for a certain analysis was labelled with a NaN value, it was dropped in that aspect of analysis as well.
 
 \subsection{Feature Engineering}
+From each timestamp we extracted:
+\begin{itemize}
+  \item \textbf{hour of day} (0--23),
+  \item \textbf{day of week} (0 = Monday to 6 = Sunday),
+  \item \textbf{month} (1--12),
+  \item \textbf{season}, via a simple mapping: winter (Dec–Feb), spring (Mar–May), summer (Jun–Aug), fall (Sep–Nov).
+\end{itemize}
 
-Key features include continuous weather variables (temperature, precipitation, humidity, wind) and temporal indicators (hour of day, day of week, month). We computed a Pearson correlation matrix and visualized it as a heatmap to assess multicollinearity and guide feature selection. A composite weather-day category (Rain\&Cool, NoRain\&Cool, Rain\&Warm, NoRain\&Warm) was created to capture nonlinear interactions. Feature importance derived from a preliminary Random Forest regressor further informed the final predictor set, ensuring robust model performance (https://github.com/neilvmelkot/DivvyBikeAnalysis).
+The final feature set comprised seven predictors:
+\[
+  \{\,
+    \text{temp},\;\text{precip},\;\text{humidity},\;\text{wind},\;\text{hour},\;\text{dayofweek},\;\text{month}
+  \}\,,
+\]
+together with the \texttt{season} column for downstream diagnostic checks.  Any additional composite categories (e.g.\ Rain \& Warm) were used only in exploratory analyses and were not included in the final modeling pipeline.
+
+All data‐wrangling and feature‐engineering steps are implemented as standalone Python scripts in our repository, which automates dataset download, ingestion, cleaning, resampling, and the creation of these features: \url{https://github.com/neilvmelkot/DivvyBikeAnalysis}.
+
+Next, we derived temporal features from each timestamp, including hour of day (0–23), day of week (0 = Monday to 6 = Sunday), and month (1–12).  We additionally coded a categorical “season” variable; winter (Dec-Feb), spring (Mar–May), summer (Jun–Aug), fall (Sep–Nov), to facilitate seasonal analysis and allow later diagnostic checks of model residuals by meteorological regime.  
+
+We also experimented with composite weather–day categories, with Rain & Cool, No Rain & Cool, Rain & Warm, and No Rain & Warm, to capture potential nonlinear interactions between temperature and precipitation.  Although these composites provided valuable insights during exploratory analysis, the final predictive models used the individual scaled variables listed above, as they delivered equal or better performance with greater interpretability.  
+
+Finally, we fit preliminary Linear, Random Forest, and Gradient Boosting regressors on the training set to rank feature importances.  The resulting importance scores validated our selection of the seven core predictors; temperature, precipitation, humidity, wind speed, hour of day, day of week, and month, and indicated no additional engineered interactions were required for robust model performance.
+
 \section{Exploratory Findings}
 \subsection{Continuous Weather Impacts}
 \paragraph{Code Snippets}
@@ -237,14 +259,6 @@ df_monthly = pd.DataFrame({
   \label{tab:monthly_table}
 \end{table}
 
-\subsection{Correlation Structure}
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=0.8\linewidth]{evaluation_results/correlation_heatmap.png}
-  \caption{Correlation matrix of weather metrics and ride counts.}
-  \label{fig:corr_heatmap}
-\end{figure}
-
 \section{Predictive Modeling and Performance}
 To quantify predictive performance, we trained three models - \textbf{Linear Regression}, \textbf{Random Forest}, and \textbf{Gradient Boosting}, using as inputs temperature, precipitation, humidity, wind speed, hour of day, day of week, and month; each was evaluated on an 80\%/20\% chronological train-test split over 2021-2024, with all predictions clipped at zero to ensure nonnegative ridership forecasts.
 
@@ -394,7 +408,7 @@ The resulting $r^2 \approx 0.9856$ indicates that \textbf{98.56\% of the month�
 This asymmetric sensitivity suggests that riders tolerate warm showers much more readily than cold ones, a nuance critical for planning spare‑bike deployments on mixed-weather days.
 
 \paragraph{Humidity and Wind Trends.} 
-Individually, humidity and wind speed exhibit clear negative trends with ridership, as shown in Figures~\ref{fig:rides_vs_humidity_percentiles},~\ref{fig:rides_vs_wind_median}, and~\ref{fig:corr_heatmap}. For humidity, median hourly ridership peaks at around 1200 rides per hour at 50--55\% relative humidity but drops sharply to approximately 150 rides per hour at 95--100\% humidity, a decline of nearly 87.5\%. This trend likely reflects physical discomfort from muggy conditions, where high humidity impairs sweat evaporation, making cycling feel more strenuous and less appealing, particularly for casual riders \cite{Steadman1979}. Additionally, high humidity often accompanies impending rain, which may deter riders due to perceived weather risks \cite{Kahneman1979}.
+Individually, humidity and wind speed exhibit negative trends with ridership, as shown in Figures~\ref{fig:rides_vs_humidity_percentiles},~\ref{fig:rides_vs_wind_median}, and~\ref{tab:rf_feature_weights}. For humidity, median hourly ridership peaks at around 1200 rides per hour at 50--55\% relative humidity but drops sharply to approximately 150 rides per hour at 95--100\% humidity, a decline of nearly 87.5\%. This trend likely reflects physical discomfort from muggy conditions, where high humidity impairs sweat evaporation, making cycling feel more strenuous and less appealing, particularly for casual riders \cite{Steadman1979}. Additionally, high humidity often accompanies impending rain, which may deter riders due to perceived weather risks \cite{Kahneman1979}.
 
 Similarly, wind speed shows a consistent decline in ridership as speeds increase. Median hourly ridership starts at approximately 734 rides per hour at low wind speeds (0.6 mph) but falls to around 209 rides per hour at 10.7 mph, a reduction of about 71.5\%. Stronger winds increase the physical effort required to cycle, especially against headwinds, and may raise safety concerns due to reduced bike stability, particularly for less experienced riders. Gusty conditions can also carry dust or debris in urban settings, further discouraging ridership. These individual effects highlight why humidity and wind, though secondary to temperature, are critical for accurate demand forecasting.
 
