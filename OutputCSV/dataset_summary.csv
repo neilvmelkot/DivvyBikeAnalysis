@@ -1,0 +1,8 @@
+metric,value
+total_files,47
+start_date,2021-01-01
+end_date,2024-12-31
+days_covered,1461
+total_rides,21647186
+avg_rides_per_day,14816.69
+avg_rides_per_hour,617.36

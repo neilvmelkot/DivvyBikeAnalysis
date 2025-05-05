@@ -1,0 +1,5 @@
+category,avg_rides_per_day
+Rain & Temp < 15°C,9535.76370510397
+No Rain & Temp < 15°C,12410.161654135338
+Rain & Temp ≥ 15°C,23490.934097421203
+No Rain & Temp ≥ 15°C,26513.07614213198
